@@ -51,14 +51,13 @@ def _case_identity(case: dict[str, Any]) -> tuple[str, str]:
     return case_id, order_id
 
 
-async def investigate_order(
+async def analyze_order(
     case: dict[str, Any], gateway: EvidenceGateway, trace: TraceWriter
 ) -> dict[str, Any]:
     """Verify the claimed order and its item/seller relationships through MCP."""
     case_id, claimed_order_id = _case_identity(case)
     evidence: dict[str, dict[str, Any]] = {}
-    errors: list[dict[str, str]] = []
-    warnings: list[str] = []
+    issues: list[dict[str, Any]] = []
 
     for tool_name, expected_domain in TOOLS.items():
         try:
@@ -80,9 +79,33 @@ async def investigate_order(
                 tool_name=tool_name,
                 evidence_refs=[result["evidence_ref"]],
             )
-            warnings.extend(f"{tool_name}:{warning}" for warning in result.get("warnings", []))
-        except (KeyError, RuntimeError, ValueError) as exc:
-            errors.append({"tool": tool_name, "error": str(exc)})
+            issues.extend(
+                {
+                    "code": "MCP_WARNING",
+                    "source": tool_name,
+                    "detail": warning,
+                    "evidence_refs": [result["evidence_ref"]],
+                }
+                for warning in result.get("warnings", [])
+            )
+        except RuntimeError as exc:
+            issues.append(
+                {
+                    "code": "TOOL_ERROR",
+                    "source": tool_name,
+                    "detail": str(exc),
+                    "evidence_refs": [],
+                }
+            )
+        except (KeyError, ValueError) as exc:
+            issues.append(
+                {
+                    "code": "INVALID_TOOL_RESULT",
+                    "source": tool_name,
+                    "detail": str(exc),
+                    "evidence_refs": [],
+                }
+            )
 
     data = [result["data"] for result in evidence.values()]
     order_ids = _ids(data, {"order_id", "order_ids"})
@@ -95,44 +118,138 @@ async def investigate_order(
         _ids(evidence.get("seller", {}).get("data"), {"seller_id", "seller_ids"})
     )
 
-    if order_ids and claimed_order_id not in order_ids:
-        warnings.append("ORDER_ID_MISMATCH")
-    if not order_ids:
-        warnings.append("ORDER_ID_NOT_CONFIRMED")
+    findings: list[dict[str, Any]] = []
+    order_result = evidence.get("order")
+    if order_result:
+        order_data = order_result["data"]
+        order_status = order_data.get("order_status") if isinstance(order_data, Mapping) else None
+        if isinstance(order_status, str) and order_status:
+            status_code = {
+                "canceled": "ORDER_CANCELED",
+                "unavailable": "ORDER_UNAVAILABLE",
+            }.get(order_status, "ORDER_STATUS_CONFIRMED")
+            findings.append(
+                {
+                    "code": status_code,
+                    "details": {"order_status": order_status},
+                    "entity_ids": _ids(order_data, {"order_id", "order_ids"}),
+                    "evidence_refs": [order_result["evidence_ref"]],
+                }
+            )
+        else:
+            issues.append(
+                {
+                    "code": "ORDER_STATUS_NOT_FOUND",
+                    "source": "get_order",
+                    "detail": "authoritative order evidence has no order_status",
+                    "evidence_refs": [order_result["evidence_ref"]],
+                }
+            )
+
+    item_result = evidence.get("item")
+    if item_result and item_ids:
+        findings.append(
+            {
+                "code": "ORDER_ITEMS_CONFIRMED",
+                "details": {"item_id_count": len(item_ids)},
+                "entity_ids": item_ids,
+                "evidence_refs": [item_result["evidence_ref"]],
+            }
+        )
+
+    seller_result = evidence.get("seller")
+    seller_record_ids_list = _ids(
+        seller_result["data"] if seller_result else None,
+        {"seller_id", "seller_ids"},
+    )
+    if seller_result and seller_record_ids_list:
+        findings.append(
+            {
+                "code": "ORDER_SELLERS_CONFIRMED",
+                "details": {"seller_id_count": len(seller_record_ids_list)},
+                "entity_ids": seller_record_ids_list,
+                "evidence_refs": [seller_result["evidence_ref"]],
+            }
+        )
+
+    unexpected_order_ids = set(order_ids) - {claimed_order_id}
+    if unexpected_order_ids:
+        issues.append(
+            {
+                "code": "ORDER_ID_MISMATCH",
+                "detail": "claimed order ID differs from authoritative evidence",
+                "evidence_refs": [
+                    result["evidence_ref"]
+                    for result in evidence.values()
+                    if unexpected_order_ids
+                    & set(_ids(result["data"], {"order_id", "order_ids"}))
+                ],
+            }
+        )
+    if claimed_order_id not in order_ids:
+        issues.append(
+            {
+                "code": "ORDER_ID_NOT_CONFIRMED",
+                "detail": "no authoritative evidence confirmed the claimed order ID",
+                "evidence_refs": [],
+            }
+        )
     if not item_ids:
-        warnings.append("ITEM_IDS_NOT_FOUND")
+        issues.append(
+            {
+                "code": "ITEM_IDS_NOT_FOUND",
+                "detail": "no item IDs were found in authoritative evidence",
+                "evidence_refs": [item_result["evidence_ref"]] if item_result else [],
+            }
+        )
     if not seller_ids:
-        warnings.append("SELLER_IDS_NOT_FOUND")
+        issues.append(
+            {
+                "code": "SELLER_IDS_NOT_FOUND",
+                "detail": "no seller IDs were found in authoritative evidence",
+                "evidence_refs": [seller_result["evidence_ref"]] if seller_result else [],
+            }
+        )
     if item_seller_ids and seller_record_ids and item_seller_ids != seller_record_ids:
-        warnings.append("SELLER_ID_MISMATCH")
+        issues.append(
+            {
+                "code": "SELLER_ID_MISMATCH",
+                "detail": "item seller IDs differ from authoritative seller records",
+                "evidence_refs": [
+                    result["evidence_ref"]
+                    for domain, result in evidence.items()
+                    if domain in {"item", "seller"}
+                ],
+            }
+        )
 
     evidence_refs = [result["evidence_ref"] for result in evidence.values()]
-    status = "partial" if errors else "completed"
-    verification_status = "partial" if errors else "conflict" if warnings else "verified"
+    status = "partial" if issues else "completed"
     trace.emit(
         case_id=case_id,
         event_type="handoff",
         actor=ACTOR,
         target="coordinator",
-        decision_code=f"ORDER_{verification_status.upper()}",
+        decision_code="ORDER_PARTIAL" if issues else "ORDER_VERIFIED",
         evidence_refs=evidence_refs,
         attributes={
             "order_count": len(order_ids),
             "item_count": len(item_ids),
             "seller_count": len(seller_ids),
-            "error_count": len(errors),
+            "issue_count": len(issues),
         },
     )
     return {
+        "case_id": case_id,
         "actor": ACTOR,
         "status": status,
-        "verification_status": verification_status,
-        "claimed_order_id": claimed_order_id,
-        "order_ids": order_ids,
-        "item_ids": item_ids,
-        "seller_ids": seller_ids,
+        "findings": findings,
+        "entities": {
+            "order_ids": order_ids,
+            "item_ids": item_ids,
+            "seller_ids": seller_ids,
+        },
         "evidence_refs": evidence_refs,
+        "issues": issues,
         "evidence": evidence,
-        "warnings": list(dict.fromkeys(warnings)),
-        "errors": errors,
     }

@@ -65,10 +65,10 @@ async def analyze_shipment_policy(case, gateway, trace) -> dict: ...
 
 ### Thành viên 1 — order/item/seller
 
-- [ ] Đọc input mẫu để lấy order/item/seller ID được cung cấp; xác minh các ID qua MCP và giữ đúng scope case.
-- [ ] Phân biệt trạng thái order thực tế với claim của khách; trả lại entity ID đã xác minh và dấu hiệu hủy đơn, hết hàng hoặc vấn đề seller khi có bằng chứng.
-- [ ] Gắn `evidence_ref` vào từng finding, emit `tool_result_consumed` khi dùng kết quả MCP; báo `issues` khi thiếu dữ liệu hoặc nguồn xung đột.
-- [ ] Viết test với gateway/trace giả cho ít nhất một case có evidence và một case thiếu/mâu thuẫn evidence. Không tạo evidence giả trong **output nộp**; test có thể dùng fixture giả để kiểm tra logic.
+- [x] Đọc input mẫu để lấy order/item/seller ID được cung cấp; xác minh các ID qua MCP và giữ đúng scope case.
+- [x] Phân biệt trạng thái order thực tế với claim của khách; trả lại entity ID đã xác minh và dấu hiệu hủy đơn, hết hàng hoặc vấn đề seller khi có bằng chứng.
+- [x] Gắn `evidence_ref` vào từng finding, emit `tool_result_consumed` khi dùng kết quả MCP; báo `issues` khi thiếu dữ liệu hoặc nguồn xung đột.
+- [x] Viết test với gateway/trace giả cho ít nhất một case có evidence và một case thiếu/mâu thuẫn evidence. Không tạo evidence giả trong **output nộp**; test có thể dùng fixture giả để kiểm tra logic.
 
 ### Thành viên 2 — payment/refund
 
