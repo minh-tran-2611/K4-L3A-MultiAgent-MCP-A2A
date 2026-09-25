@@ -123,9 +123,24 @@ def test_analyze_order_reports_missing_and_conflicting_evidence() -> None:
     assert {issue["code"] for issue in result["issues"]} == {
         "TOOL_ERROR",
         "ORDER_ID_MISMATCH",
+        "ORDER_ID_NOT_CONFIRMED",
         "SELLER_ID_MISMATCH",
     }
-    assert all(finding["code"] != "ORDER_STATUS_CONFIRMED" for finding in result["findings"])
+    assert result["entities"] == {
+        "order_ids": [],
+        "item_ids": ["item-1"],
+        "seller_ids": [],
+    }
+    assert [finding["code"] for finding in result["findings"]] == [
+        "ORDER_ITEMS_CONFIRMED"
+    ]
+    seller_issue = next(
+        issue for issue in result["issues"] if issue["code"] == "SELLER_ID_MISMATCH"
+    )
+    assert seller_issue["observed_ids"] == {
+        "get_order_items": ["seller-from-item"],
+        "get_sellers": ["seller-from-record"],
+    }
     assert len(result["evidence_refs"]) == 2
     assert [event["event_type"] for event in trace.events] == [
         "tool_result_consumed",
