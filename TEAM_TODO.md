@@ -50,6 +50,7 @@ Tên file mới ở bảng là **quy ước nhóm đề xuất**, không phải 
 - [ ] Điền `COMPETITION_API_URL`, `COMPETITION_TEAM_API_KEY` và `MCP_ENDPOINT` thật vào `.env`. Các địa chỉ trong README là ví dụ; dùng địa chỉ được cấp cho lớp/team. Không gửi key qua commit hoặc log.
 - [ ] Khi repo còn sạch và **chưa tải input/output**, chạy `pytest -q` và `day09 --help` để kiểm tra bộ khung.
 - [ ] Tải ZIP input **L3A** từ GitHub Release theo README, giải nén vào root repo sao cho có `case-set.json` và `inputs/*.json`; chạy `day09 validate-inputs`. Lệnh này yêu cầu đúng 100 case, đúng variant `l3a` và tập file khớp manifest.
+  - Release của **repo gốc**: https://github.com/VinUni-AI20k/K4-L3A-MultiAgent-MCP-A2A/releases/tag/v1 — tải file **`l3a-inputs-v1.zip`** trong mục “Download input”. Fork của nhóm có thể không hiển thị Release này.
 - [ ] Chạy `day09 mcp-tools`, chia sẻ **danh sách tên tool và mô tả/đối số đã xác minh** cho cả nhóm. Không đoán tên tool hay cấu trúc `data` của MCP trước khi xem dữ liệu thật.
 - [ ] Chọn 2–3 case mẫu có tình huống khác nhau để cả nhóm cùng hiểu input và evidence; không xem customer message là ground truth.
 
