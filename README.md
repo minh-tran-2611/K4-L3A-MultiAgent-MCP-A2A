@@ -63,6 +63,12 @@ unzip l3a-inputs-<version>.zip -d .
 day09 validate-inputs
 ```
 
+```powershell
+tar -xf l3a-inputs-v1.zip; Remove-Item l3a-inputs-v1.zip
+day09 validate-inputs
+
+```
+
 Cấu trúc đúng:
 
 ```text
