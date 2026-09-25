@@ -13,6 +13,16 @@
 
 **Quy tắc bắt buộc:** lời kể của khách hàng là claim cần kiểm tra, không phải dữ kiện đã xác nhận. Không đoán dữ liệu thiếu, không tạo/sửa `evidence_ref`, không dùng evidence của case khác. Mọi MCP call dùng đúng `case_id`. Chỉ dẫn evidence thật sự hỗ trợ kết luận.
 
+### Phân biệt ba nguồn dữ liệu
+
+| Nguồn | Dùng để làm gì? | Có phải tải về để chạy lab? |
+| --- | --- | --- |
+| Dataset Olist trên Kaggle | Tài liệu tham khảo về bối cảnh thương mại điện tử; README chỉ ghi “tham khảo dữ liệu tại” | **Không bắt buộc** theo README; không lấy dữ liệu Kaggle làm bằng chứng cho case |
+| ZIP **input L3A** từ GitHub Release | Chứa `case-set.json` và 100 file `inputs/<case_id>.json`: các case/claim mà workflow phải xử lý | **Bắt buộc** trên máy chạy `day09 validate-inputs`, `day09 run`, `day09 validate`, `day09 package` |
+| MCP Evidence Gateway | Trả dữ liệu có thẩm quyền về order, payment, shipment, policy… cùng `evidence_ref`; các call được audit | Không tải thành dataset; agent truy vấn bằng tool với đúng `case_id` |
+
+Nhóm trưởng chịu trách nhiệm lấy ZIP input và bảo đảm cả nhóm có **cùng phiên bản input** khi cần phát triển/test. Không bắt từng thành viên tải Kaggle. Người viết agent cần xem case mẫu và có cách gọi MCP để kiểm tra phần mình; có thể dùng bản ZIP input cùng phiên bản trên máy riêng hoặc làm trên môi trường chung. Không commit input vào Git vì repo đã ignore thư mục này.
+
 ## 1. Phân công và file sở hữu
 
 | Người | Trách nhiệm | File chính | Bàn giao |
