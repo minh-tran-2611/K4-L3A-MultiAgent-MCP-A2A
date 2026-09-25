@@ -40,7 +40,16 @@ async def analyze_payment(
         for tool_name, result in evidence.items()
         if tool_name in {"get_order_payments", "get_payment_timeline"}
     ]
-    payment_references = values(payment_data, {"payment_reference", "payment_ref", "payment_id"})
+    payment_references = values(
+        payment_data,
+        {
+            "payment_reference",
+            "payment_ref",
+            "payment_id",
+            "transaction_id",
+            "payment_sequential",
+        },
+    )
     findings = (
         [
             {

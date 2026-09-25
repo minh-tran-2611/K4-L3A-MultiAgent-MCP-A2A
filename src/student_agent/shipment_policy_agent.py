@@ -34,7 +34,10 @@ async def analyze_shipment_policy(
             evidence[tool_name] = result
 
     shipment = evidence.get("get_shipment_summary")
-    shipment_ids = values(shipment["data"] if shipment else None, {"shipment_id", "delivery_id"})
+    shipment_ids = values(
+        shipment["data"] if shipment else None,
+        {"shipment_id", "delivery_id", "tracking_id", "tracking_code"},
+    )
     findings = (
         [
             {

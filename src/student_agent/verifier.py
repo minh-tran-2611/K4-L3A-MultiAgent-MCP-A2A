@@ -42,10 +42,20 @@ def verify_output(
         raise ValueError("refund lines do not add up")
     if financial["recommended_refund_brl"] and not output_refs:
         raise ValueError("refund recommendation lacks evidence")
-    if output["assessment"]["case_status"] == "no_action" and output["resolution_actions"]:
+    case_status = output["assessment"]["case_status"]
+    if case_status == "no_action" and output["resolution_actions"]:
         raise ValueError("no_action must not include resolution actions")
+    if case_status == "no_action" and financial["recommended_refund_brl"]:
+        raise ValueError("no_action must not recommend a refund")
+    if case_status == "action_required" and not output["resolution_actions"]:
+        raise ValueError("action_required must include a resolution action")
     if len(output["resolution_actions"]) != len(set(output["resolution_actions"])):
         raise ValueError("duplicate resolution action")
+
+    seller_ids = set(output["affected_entities"]["seller_ids"])
+    for party in output["root_cause_analysis"]["responsible_parties"]:
+        if party["party_type"] == "seller" and party["party_id"] not in seller_ids:
+            raise ValueError("responsible seller is outside affected entities")
 
     trace.emit(
         case_id=case_id,
